@@ -11,7 +11,10 @@ import {
   expect,
   it,
 } from 'vitest'
+import { AuthProvider } from '../features/auth/model/AuthProvider.tsx'
+import { clearCsrfToken } from '../infrastructure/api/csrf.ts'
 import { handlers } from '../mocks/browser.ts'
+import { resetCsrfState } from '../mocks/csrf.ts'
 import { resetWebhooks, webhooks } from '../mocks/data.ts'
 import { resetSession, startSession } from '../mocks/session.ts'
 import { WebhooksPage } from './WebhooksPage.tsx'
@@ -28,7 +31,11 @@ function renderWebhooksPage(initialEntry = '/webhooks?page=1') {
     [
       {
         path: '/webhooks',
-        element: <WebhooksPage />,
+        element: (
+          <AuthProvider>
+            <WebhooksPage />
+          </AuthProvider>
+        ),
       },
     ],
     {
@@ -54,6 +61,8 @@ afterAll(() => {
 beforeEach(() => {
   resetSession()
   resetWebhooks()
+  resetCsrfState()
+  clearCsrfToken()
   server.resetHandlers()
   requestedUrls.length = 0
   startSession()
@@ -63,6 +72,8 @@ afterEach(() => {
   cleanup()
   resetSession()
   resetWebhooks()
+  resetCsrfState()
+  clearCsrfToken()
 })
 
 describe('WebhooksPage list states', () => {

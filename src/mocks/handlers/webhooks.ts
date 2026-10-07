@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw'
 import type { ValidationError } from '../../shared/api/validationError.ts'
+import { validateCsrf } from '../csrf.ts'
 import { webhooks } from '../data.ts'
 import { isSessionActive } from '../session.ts'
 
@@ -121,6 +122,12 @@ export const webhooksHandlers = [
   http.put('/v1/webhooks/:id', async ({ params, request }) => {
     if (!isSessionActive()) {
       return new HttpResponse(null, { status: 401 })
+    }
+
+    const csrfError = validateCsrf(request)
+
+    if (csrfError) {
+      return csrfError
     }
 
     const id = parseWebhookId(String(params.id))

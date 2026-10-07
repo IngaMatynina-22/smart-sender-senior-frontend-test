@@ -2,15 +2,18 @@ import { useState, type ChangeEvent } from 'react'
 import {
   Alert,
   Box,
+  Button,
   CircularProgress,
   Container,
   Dialog,
   DialogContent,
   DialogTitle,
   Paper,
+  Stack,
   Typography,
 } from '@mui/material'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
+import { useAuth } from '../features/auth/model/useAuth.ts'
 import { useWebhook } from '../features/webhooks/model/useWebhook.ts'
 import { useWebhooks } from '../features/webhooks/model/useWebhooks.ts'
 import type { Webhook } from '../features/webhooks/model/types.ts'
@@ -73,7 +76,7 @@ function EditWebhookDialog({
               py: 4,
             }}
           >
-            <CircularProgress />
+            <CircularProgress size={32} />
             <Typography color="text.secondary">Loading webhook...</Typography>
           </Box>
         ) : error ? (
@@ -99,10 +102,13 @@ function EditWebhookDialog({
 }
 
 export function WebhooksPage() {
+  const navigate = useNavigate()
+  const { logout } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parsePage(searchParams.get('page'))
   const search = searchParams.get('search') ?? ''
   const [editingWebhookId, setEditingWebhookId] = useState<number | null>(null)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const { data, isLoading, error, refetch } = useWebhooks({
     page,
@@ -131,13 +137,47 @@ export function WebhooksPage() {
     refetch()
   }
 
-  return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Webhooks
-      </Typography>
+  const handleLogout = async () => {
+    if (isLoggingOut) {
+      return
+    }
 
-      <Paper sx={{ p: 2 }}>
+    setIsLoggingOut(true)
+
+    try {
+      await logout()
+      navigate('/login', { replace: true })
+    } finally {
+      setIsLoggingOut(false)
+    }
+  }
+
+  return (
+    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 4 }, px: { xs: 2, sm: 3 } }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        sx={{
+          mb: 3,
+          justifyContent: 'space-between',
+          alignItems: { xs: 'stretch', sm: 'center' },
+        }}
+      >
+        <Typography variant="h4" component="h1">
+          Webhooks
+        </Typography>
+        <Button
+          variant="outlined"
+          onClick={() => {
+            void handleLogout()
+          }}
+          disabled={isLoggingOut}
+        >
+          {isLoggingOut ? 'Logging out...' : 'Logout'}
+        </Button>
+      </Stack>
+
+      <Paper sx={{ p: { xs: 2, sm: 3 } }}>
         <WebhooksSearch value={search} onChange={handleSearchChange} />
 
         {isLoading ? (
@@ -163,7 +203,7 @@ export function WebhooksPage() {
           <>
             <WebhooksTable webhooks={data.data} onEdit={handleEdit} />
             {data.paging.pages.last > 1 ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', pt: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', pt: 3 }}>
                 <WebhooksPagination
                   page={page}
                   pages={data.paging.pages.last}

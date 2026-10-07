@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { clearCsrfToken } from '../../../infrastructure/api/csrf.ts'
 import {
   clearSessionExpiredNotification,
   registerSessionExpiredHandler,
@@ -15,6 +16,7 @@ import {
   getMe,
   issueDeviceSession,
   login as loginRequest,
+  revokeSession,
 } from '../api.ts'
 import type { User } from './types.ts'
 
@@ -23,7 +25,7 @@ export type AuthContextValue = {
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<void>
-  logout: () => void
+  logout: () => Promise<void>
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null)
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     registerSessionExpiredHandler(() => {
       setUser(null)
+      clearCsrfToken()
     })
 
     return () => {
@@ -67,8 +70,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   }, [])
 
-  const logout = useCallback(() => {
-    setUser(null)
+  const logout = useCallback(async () => {
+    try {
+      await revokeSession()
+    } catch {
+      // Always clear local auth state even if revoke fails.
+    } finally {
+      clearCsrfToken()
+      setUser(null)
+    }
   }, [])
 
   const value = useMemo<AuthContextValue>(

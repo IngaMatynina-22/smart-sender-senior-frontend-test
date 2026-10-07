@@ -9,9 +9,11 @@ import {
   it,
   vi,
 } from 'vitest'
-import { getMe, issueDeviceSession, login } from './api.ts'
+import { clearCsrfToken } from '../../infrastructure/api/csrf.ts'
 import { handlers } from '../../mocks/browser.ts'
+import { resetCsrfState } from '../../mocks/csrf.ts'
 import { resetSession } from '../../mocks/session.ts'
+import { getMe, issueDeviceSession, login } from './api.ts'
 
 const SESSION_TTL_MS = 30_000
 
@@ -49,6 +51,8 @@ afterAll(() => {
 
 beforeEach(() => {
   resetSession()
+  resetCsrfState()
+  clearCsrfToken()
   server.resetHandlers()
   localStorage.clear()
   meStatuses.length = 0
@@ -59,6 +63,8 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  resetCsrfState()
+  clearCsrfToken()
 })
 
 describe('concurrent 401 handling', () => {

@@ -1,4 +1,12 @@
-import { Alert, Box, Button, TextField, Typography } from '@mui/material'
+import {
+  Alert,
+  Box,
+  Button,
+  Container,
+  Paper,
+  TextField,
+  Typography,
+} from '@mui/material'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { ApiError } from '../../../infrastructure/api/client.ts'
@@ -130,54 +138,58 @@ export function LoginForm() {
   }
 
   return (
-    <Box
-      component="form"
-      onSubmit={handleSubmit}
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 2,
-        maxWidth: 400,
-        mx: 'auto',
-        mt: 8,
-        px: 2,
-      }}
-    >
-      <Typography variant="h4" component="h1">
-        Login
-      </Typography>
+    <Container maxWidth="sm" sx={{ py: { xs: 4, sm: 8 }, px: 2 }}>
+      <Paper
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2.5,
+          p: { xs: 3, sm: 4 },
+        }}
+      >
+        <Box>
+          <Typography variant="h4" component="h1" gutterBottom>
+            Login
+          </Typography>
+          <Typography color="text.secondary">
+            Sign in to manage your webhooks.
+          </Typography>
+        </Box>
 
-      {formError ? <Alert severity="error">{formError}</Alert> : null}
+        {formError ? <Alert severity="error">{formError}</Alert> : null}
 
-      <TextField
-        label="Email"
-        type="email"
-        name="email"
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        error={Boolean(fieldErrors.email)}
-        helperText={fieldErrors.email}
-        disabled={isLoading}
-        autoComplete="email"
-        fullWidth
-      />
+        <TextField
+          label="Email"
+          type="email"
+          name="email"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          error={Boolean(fieldErrors.email)}
+          helperText={fieldErrors.email}
+          disabled={isLoading}
+          autoComplete="email"
+          fullWidth
+        />
 
-      <TextField
-        label="Password"
-        type="password"
-        name="password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        error={Boolean(fieldErrors.password)}
-        helperText={fieldErrors.password}
-        disabled={isLoading}
-        autoComplete="current-password"
-        fullWidth
-      />
+        <TextField
+          label="Password"
+          type="password"
+          name="password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          error={Boolean(fieldErrors.password)}
+          helperText={fieldErrors.password}
+          disabled={isLoading}
+          autoComplete="current-password"
+          fullWidth
+        />
 
-      <Button type="submit" variant="contained" disabled={isLoading} fullWidth>
-        {isLoading ? 'Logging in...' : 'Login'}
-      </Button>
-    </Box>
+        <Button type="submit" variant="contained" disabled={isLoading} fullWidth>
+          {isLoading ? 'Logging in...' : 'Login'}
+        </Button>
+      </Paper>
+    </Container>
   )
 }

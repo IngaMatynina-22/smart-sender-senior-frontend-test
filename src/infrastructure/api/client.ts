@@ -1,4 +1,4 @@
-import { getCsrfToken } from './csrf.ts'
+import { getCsrfToken, refreshCsrfToken } from './csrf.ts'
 import { notifySessionExpired } from './sessionExpired.ts'
 
 export class ApiError extends Error {
@@ -15,6 +15,7 @@ export type ApiRequestOptions = {
   headers?: HeadersInit
   body?: BodyInit | null
   skipAuthRetry?: boolean
+  skipCsrfRetry?: boolean
 }
 
 type ApiGetOptions = {
@@ -25,6 +26,7 @@ type ApiGetOptions = {
 const REQUESTED_WITH_HEADER = 'X-Requested-With'
 const REQUESTED_WITH_VALUE = 'XMLHttpRequest'
 const CSRF_TOKEN_HEADER = 'X-CSRF-TOKEN'
+const CSRF_PATH = '/csrf'
 const ROTATE_SESSION_PATH = '/auth/token/rotate'
 
 let rotatePromise: Promise<void> | null = null
@@ -44,6 +46,20 @@ function shouldRetryAfterUnauthorized(
     status === 401 &&
     !options?.skipAuthRetry &&
     url !== ROTATE_SESSION_PATH
+  )
+}
+
+function shouldRetryAfterCsrfMismatch(
+  url: string,
+  method: string,
+  status: number,
+  options?: ApiRequestOptions,
+): boolean {
+  return (
+    status === 419 &&
+    (method === 'POST' || method === 'PUT') &&
+    !options?.skipCsrfRetry &&
+    url !== CSRF_PATH
   )
 }
 
@@ -78,6 +94,15 @@ async function request(
 
   if (response.ok) {
     return response
+  }
+
+  if (shouldRetryAfterCsrfMismatch(url, method, response.status, options)) {
+    await refreshCsrfToken()
+
+    return request(url, method, {
+      ...options,
+      skipCsrfRetry: true,
+    })
   }
 
   if (shouldRetryAfterUnauthorized(url, response.status, options)) {

@@ -1,5 +1,12 @@
 import { http, HttpResponse } from 'msw'
-import { canRotateSession, isSessionActive, startSession } from '../session.ts'
+import { validateCsrf } from '../csrf.ts'
+import {
+  canRotateSession,
+  endSession,
+  getSessionFingerprint,
+  isSessionActive,
+  startSession,
+} from '../session.ts'
 
 const MOCK_USER = {
   id: 1,
@@ -26,6 +33,10 @@ type IssueSessionBody = {
 }
 
 type RotateSessionBody = {
+  fingerprint?: string
+}
+
+type RevokeSessionBody = {
   fingerprint?: string
 }
 
@@ -84,8 +95,25 @@ function invalidDeviceSessionToken() {
   )
 }
 
+function invalidFingerprint() {
+  return HttpResponse.json(
+    {
+      errors: {
+        fingerprint: 'Invalid fingerprint',
+      },
+    },
+    { status: 422 },
+  )
+}
+
 export const authHandlers = [
   http.post('/auth/login', async ({ request }) => {
+    const csrfError = validateCsrf(request)
+
+    if (csrfError) {
+      return csrfError
+    }
+
     const captchaToken = request.headers.get(CAPTCHA_HEADER)
 
     if (captchaToken === null || captchaToken.trim() === '') {
@@ -114,6 +142,12 @@ export const authHandlers = [
   }),
 
   http.post('/auth/token/issue', async ({ request }) => {
+    const csrfError = validateCsrf(request)
+
+    if (csrfError) {
+      return csrfError
+    }
+
     let body: IssueSessionBody
 
     try {
@@ -126,7 +160,11 @@ export const authHandlers = [
       return invalidDeviceSessionToken()
     }
 
-    startSession()
+    if (typeof body.fingerprint !== 'string' || body.fingerprint.trim() === '') {
+      return invalidFingerprint()
+    }
+
+    startSession(body.fingerprint)
 
     return new HttpResponse(null, { status: 200 })
   }),
@@ -146,6 +184,12 @@ export const authHandlers = [
   }),
 
   http.post('/auth/token/rotate', async ({ request }) => {
+    const csrfError = validateCsrf(request)
+
+    if (csrfError) {
+      return csrfError
+    }
+
     try {
       void ((await request.json()) as RotateSessionBody)
     } catch {}
@@ -155,6 +199,34 @@ export const authHandlers = [
     }
 
     startSession()
+
+    return new HttpResponse(null, { status: 200 })
+  }),
+
+  http.post('/auth/token/revoke', async ({ request }) => {
+    const csrfError = validateCsrf(request)
+
+    if (csrfError) {
+      return csrfError
+    }
+
+    let body: RevokeSessionBody
+
+    try {
+      body = (await request.json()) as RevokeSessionBody
+    } catch {
+      return invalidFingerprint()
+    }
+
+    if (
+      typeof body.fingerprint !== 'string' ||
+      body.fingerprint.trim() === '' ||
+      body.fingerprint !== getSessionFingerprint()
+    ) {
+      return invalidFingerprint()
+    }
+
+    endSession()
 
     return new HttpResponse(null, { status: 200 })
   }),

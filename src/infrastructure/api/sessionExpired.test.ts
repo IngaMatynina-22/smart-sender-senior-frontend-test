@@ -12,8 +12,10 @@ import {
 } from 'vitest'
 import { getMe, issueDeviceSession, login } from '../../features/auth/api.ts'
 import { handlers } from '../../mocks/browser.ts'
+import { resetCsrfState } from '../../mocks/csrf.ts'
 import { resetSession } from '../../mocks/session.ts'
 import { ApiError } from './client.ts'
+import { clearCsrfToken } from './csrf.ts'
 import {
   clearSessionExpiredNotification,
   registerSessionExpiredHandler,
@@ -53,6 +55,8 @@ afterAll(() => {
 
 beforeEach(() => {
   resetSession()
+  resetCsrfState()
+  clearCsrfToken()
   server.resetHandlers()
   localStorage.clear()
   meStatuses.length = 0
@@ -65,6 +69,8 @@ beforeEach(() => {
 afterEach(() => {
   registerSessionExpiredHandler(null)
   vi.useRealTimers()
+  resetCsrfState()
+  clearCsrfToken()
 })
 
 async function createExpiredSession() {

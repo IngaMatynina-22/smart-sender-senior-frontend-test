@@ -10,7 +10,9 @@ import {
   expect,
   it,
 } from 'vitest'
+import { clearCsrfToken } from '../../../infrastructure/api/csrf.ts'
 import { handlers } from '../../../mocks/browser.ts'
+import { resetCsrfState } from '../../../mocks/csrf.ts'
 import { resetWebhooks } from '../../../mocks/data.ts'
 import { resetSession, startSession } from '../../../mocks/session.ts'
 import { useWebhooks } from './useWebhooks.ts'
@@ -28,6 +30,8 @@ afterAll(() => {
 beforeEach(() => {
   resetSession()
   resetWebhooks()
+  resetCsrfState()
+  clearCsrfToken()
   server.resetHandlers()
   startSession()
 })
@@ -35,6 +39,8 @@ beforeEach(() => {
 afterEach(() => {
   resetSession()
   resetWebhooks()
+  resetCsrfState()
+  clearCsrfToken()
 })
 
 describe('useWebhooks', () => {

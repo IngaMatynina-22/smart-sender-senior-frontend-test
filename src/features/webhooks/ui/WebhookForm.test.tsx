@@ -10,7 +10,9 @@ import {
   it,
   vi,
 } from 'vitest'
+import { clearCsrfToken } from '../../../infrastructure/api/csrf.ts'
 import { handlers } from '../../../mocks/browser.ts'
+import { resetCsrfState } from '../../../mocks/csrf.ts'
 import { resetWebhooks } from '../../../mocks/data.ts'
 import { resetSession, startSession } from '../../../mocks/session.ts'
 import type { Webhook } from '../model/types.ts'
@@ -46,6 +48,8 @@ afterAll(() => {
 beforeEach(() => {
   resetSession()
   resetWebhooks()
+  resetCsrfState()
+  clearCsrfToken()
   server.resetHandlers()
   requestedMethods.length = 0
   startSession()
@@ -55,6 +59,8 @@ afterEach(() => {
   cleanup()
   resetSession()
   resetWebhooks()
+  resetCsrfState()
+  clearCsrfToken()
 })
 
 describe('WebhookForm', () => {

@@ -1,5 +1,6 @@
 import {
   Button,
+  Chip,
   Table,
   TableBody,
   TableCell,
@@ -16,8 +17,8 @@ type WebhooksTableProps = {
 
 export function WebhooksTable({ webhooks, onEdit }: WebhooksTableProps) {
   return (
-    <TableContainer>
-      <Table>
+    <TableContainer sx={{ overflowX: 'auto' }}>
+      <Table size="small">
         <TableHead>
           <TableRow>
             <TableCell>Name</TableCell>
@@ -28,10 +29,26 @@ export function WebhooksTable({ webhooks, onEdit }: WebhooksTableProps) {
         </TableHead>
         <TableBody>
           {webhooks.map((webhook) => (
-            <TableRow key={webhook.id}>
-              <TableCell>{webhook.name}</TableCell>
-              <TableCell>{webhook.url}</TableCell>
-              <TableCell>{webhook.active ? 'Active' : 'Inactive'}</TableCell>
+            <TableRow key={webhook.id} hover>
+              <TableCell sx={{ whiteSpace: 'nowrap' }}>{webhook.name}</TableCell>
+              <TableCell
+                sx={{
+                  maxWidth: { xs: 160, sm: 360 },
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {webhook.url}
+              </TableCell>
+              <TableCell>
+                <Chip
+                  size="small"
+                  label={webhook.active ? 'Active' : 'Inactive'}
+                  color={webhook.active ? 'success' : 'default'}
+                  variant={webhook.active ? 'filled' : 'outlined'}
+                />
+              </TableCell>
               <TableCell align="right">
                 <Button
                   size="small"

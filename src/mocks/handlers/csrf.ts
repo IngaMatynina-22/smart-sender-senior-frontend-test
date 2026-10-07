@@ -1,13 +1,14 @@
 import { http, HttpResponse } from 'msw'
+import { getMockCsrfToken } from '../csrf.ts'
 
-const MOCK_CSRF_TOKEN = 'mock-csrf-token'
+const CSRF_TOKEN_HEADER = 'X-CSRF-TOKEN'
 
 export const csrfHandlers = [
   http.get('/csrf', () => {
     return new HttpResponse(null, {
       status: 204,
       headers: {
-        'X-CSRF-TOKEN': MOCK_CSRF_TOKEN,
+        [CSRF_TOKEN_HEADER]: getMockCsrfToken(),
       },
     })
   }),

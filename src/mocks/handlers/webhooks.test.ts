@@ -9,6 +9,7 @@ import {
   it,
 } from 'vitest'
 import { handlers } from '../browser.ts'
+import { getMockCsrfToken, resetCsrfState } from '../csrf.ts'
 import { resetWebhooks, webhooks } from '../data.ts'
 import { resetSession, startSession } from '../session.ts'
 
@@ -25,12 +26,14 @@ afterAll(() => {
 beforeEach(() => {
   resetSession()
   resetWebhooks()
+  resetCsrfState()
   server.resetHandlers()
 })
 
 afterEach(() => {
   resetSession()
   resetWebhooks()
+  resetCsrfState()
 })
 
 async function getWebhooks(query = '') {
@@ -49,6 +52,7 @@ async function putWebhook(
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
+      'X-CSRF-TOKEN': getMockCsrfToken(),
     },
     body: JSON.stringify(body),
   })

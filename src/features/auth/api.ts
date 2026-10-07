@@ -5,6 +5,7 @@ import type { User } from './model/types.ts'
 
 const LOGIN_PATH = '/auth/login'
 const ISSUE_SESSION_PATH = '/auth/token/issue'
+const REVOKE_SESSION_PATH = '/auth/token/revoke'
 const ME_PATH = '/v1/me'
 const CAPTCHA_HEADER = 'X-Captcha-Token'
 const MOCK_CAPTCHA_TOKEN = 'mock-captcha-token'
@@ -39,6 +40,17 @@ export async function issueDeviceSession(deviceSessionToken: string): Promise<vo
     },
     body: JSON.stringify({
       device_session_token: deviceSessionToken,
+      fingerprint: getFingerprint(),
+    }),
+  })
+}
+
+export async function revokeSession(): Promise<void> {
+  await apiClient.post(REVOKE_SESSION_PATH, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
       fingerprint: getFingerprint(),
     }),
   })
