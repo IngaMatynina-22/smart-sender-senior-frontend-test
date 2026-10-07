@@ -26,6 +26,8 @@ const REQUESTED_WITH_VALUE = 'XMLHttpRequest'
 const CSRF_TOKEN_HEADER = 'X-CSRF-TOKEN'
 const ROTATE_SESSION_PATH = '/auth/token/rotate'
 
+let rotatePromise: Promise<void> | null = null
+
 function createHeaders(headers?: HeadersInit): Headers {
   const requestHeaders = new Headers(headers)
   requestHeaders.set(REQUESTED_WITH_HEADER, REQUESTED_WITH_VALUE)
@@ -42,6 +44,18 @@ function shouldRetryAfterUnauthorized(
     !options?.skipAuthRetry &&
     url !== ROTATE_SESSION_PATH
   )
+}
+
+async function rotateSharedSession(): Promise<void> {
+  if (!rotatePromise) {
+    rotatePromise = import('./session.ts')
+      .then(({ rotateSession }) => rotateSession())
+      .finally(() => {
+        rotatePromise = null
+      })
+  }
+
+  await rotatePromise
 }
 
 async function request(
@@ -66,8 +80,7 @@ async function request(
   }
 
   if (shouldRetryAfterUnauthorized(url, response.status, options)) {
-    const { rotateSession } = await import('./session.ts')
-    await rotateSession()
+    await rotateSharedSession()
 
     return request(url, method, {
       ...options,
