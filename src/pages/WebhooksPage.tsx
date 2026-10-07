@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import {
   Alert,
   Box,
@@ -9,18 +9,24 @@ import {
 } from '@mui/material'
 import { useWebhooks } from '../features/webhooks/model/useWebhooks.ts'
 import { WebhooksPagination } from '../features/webhooks/ui/WebhooksPagination.tsx'
+import { WebhooksSearch } from '../features/webhooks/ui/WebhooksSearch.tsx'
 import { WebhooksTable } from '../features/webhooks/ui/WebhooksTable.tsx'
 
 const LIMIT = 10
-const SEARCH = ''
 
 export function WebhooksPage() {
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
   const { data, isLoading, error } = useWebhooks({
     page,
     limit: LIMIT,
-    search: SEARCH,
+    search,
   })
+
+  const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setSearch(event.target.value)
+    setPage(1)
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -29,6 +35,8 @@ export function WebhooksPage() {
       </Typography>
 
       <Paper sx={{ p: 2 }}>
+        <WebhooksSearch value={search} onChange={handleSearchChange} />
+
         {isLoading ? (
           <Box
             sx={{
