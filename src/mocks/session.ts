@@ -24,3 +24,8 @@ export function isSessionActive(): boolean {
 export function canRotateSession(): boolean {
   return isRefreshable
 }
+
+export function resetSession(): void {
+  expiresAt = null
+  isRefreshable = false
+}
