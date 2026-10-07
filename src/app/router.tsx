@@ -1,12 +1,13 @@
-import { createBrowserRouter, Navigate } from 'react-router'
+import { createBrowserRouter } from 'react-router'
 import { RequireAuth } from '../features/auth/ui/RequireAuth.tsx'
 import { LoginPage } from '../pages/LoginPage.tsx'
 import { WebhooksPage } from '../pages/WebhooksPage.tsx'
+import { HomeRedirect } from './HomeRedirect.tsx'
 
 export const router = createBrowserRouter([
   {
     path: '/',
-    element: <Navigate to="/webhooks" replace />,
+    element: <HomeRedirect />,
   },
   {
     path: '/login',
