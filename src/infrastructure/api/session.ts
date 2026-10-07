@@ -1,9 +1,16 @@
-let sessionToken: string | null = null
+import { getFingerprint } from '../../shared/lib/fingerprint.ts'
+import { apiClient } from './client.ts'
 
-export function getSessionToken(): string | null {
-  return sessionToken
-}
+const ROTATE_SESSION_PATH = '/auth/token/rotate'
 
-export function setSessionToken(token: string | null): void {
-  sessionToken = token
+export async function rotateSession(): Promise<void> {
+  await apiClient.post(ROTATE_SESSION_PATH, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fingerprint: getFingerprint(),
+    }),
+    skipAuthRetry: true,
+  })
 }

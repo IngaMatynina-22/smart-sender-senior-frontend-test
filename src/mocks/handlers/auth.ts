@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import { isSessionActive, startSession } from '../session.ts'
+import { canRotateSession, isSessionActive, startSession } from '../session.ts'
 
 const MOCK_USER = {
   id: 1,
@@ -150,7 +150,7 @@ export const authHandlers = [
       void ((await request.json()) as RotateSessionBody)
     } catch {}
 
-    if (!isSessionActive()) {
+    if (!canRotateSession()) {
       return new HttpResponse(null, { status: 400 })
     }
 

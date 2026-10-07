@@ -1,10 +1,10 @@
 import { apiClient } from '../../infrastructure/api/client.ts'
+import { rotateSession as rotateSessionRequest } from '../../infrastructure/api/session.ts'
 import { getFingerprint } from '../../shared/lib/fingerprint.ts'
 import type { User } from './model/types.ts'
 
 const LOGIN_PATH = '/auth/login'
 const ISSUE_SESSION_PATH = '/auth/token/issue'
-const ROTATE_SESSION_PATH = '/auth/token/rotate'
 const ME_PATH = '/v1/me'
 const CAPTCHA_HEADER = 'X-Captcha-Token'
 const MOCK_CAPTCHA_TOKEN = 'mock-captcha-token'
@@ -50,12 +50,5 @@ export async function getMe(): Promise<User> {
 }
 
 export async function rotateSession(): Promise<void> {
-  await apiClient.post(ROTATE_SESSION_PATH, {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      fingerprint: getFingerprint(),
-    }),
-  })
+  await rotateSessionRequest()
 }
