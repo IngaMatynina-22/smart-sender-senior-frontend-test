@@ -7,5 +7,14 @@ export function startSession(): void {
 }
 
 export function isSessionActive(): boolean {
-  return expiresAt !== null && Date.now() < expiresAt
+  if (expiresAt === null) {
+    return false
+  }
+
+  if (Date.now() >= expiresAt) {
+    expiresAt = null
+    return false
+  }
+
+  return true
 }
