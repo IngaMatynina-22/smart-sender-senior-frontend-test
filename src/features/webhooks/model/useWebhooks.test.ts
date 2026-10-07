@@ -87,7 +87,7 @@ describe('useWebhooks', () => {
     expect(result.current.error?.response.status).toBe(500)
   })
 
-  it('reloads when params change', async () => {
+  it('keeps previous data while reloading when params change', async () => {
     const { result, rerender } = renderHook(
       (props: { page: number; limit: number; search?: string }) =>
         useWebhooks(props),
@@ -104,11 +104,16 @@ describe('useWebhooks', () => {
     })
 
     expect(result.current.data?.paging.pages.current).toBe(1)
+    expect(result.current.isInitialLoading).toBe(false)
 
     rerender({
       page: 2,
       limit: 10,
     })
+
+    expect(result.current.isLoading).toBe(true)
+    expect(result.current.isInitialLoading).toBe(false)
+    expect(result.current.data?.paging.pages.current).toBe(1)
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false)

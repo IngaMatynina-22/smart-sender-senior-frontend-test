@@ -41,10 +41,15 @@ afterEach(() => {
   localStorage.clear()
 })
 
+const xhrHeaders = {
+  'X-Requested-With': 'XMLHttpRequest',
+} as const
+
 async function revoke(fingerprint: string) {
   return fetch('/auth/token/revoke', {
     method: 'POST',
     headers: {
+      ...xhrHeaders,
       'Content-Type': 'application/json',
       'X-CSRF-TOKEN': getMockCsrfToken(),
     },
@@ -59,7 +64,7 @@ describe('POST /auth/token/revoke', () => {
 
     const response = await revoke(fingerprint)
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(204)
     expect(isSessionActive()).toBe(false)
     expect(canRotateSession()).toBe(false)
   })
@@ -70,7 +75,9 @@ describe('POST /auth/token/revoke', () => {
 
     await revoke(fingerprint)
 
-    const meResponse = await fetch('/v1/me')
+    const meResponse = await fetch('/v1/me', {
+      headers: xhrHeaders,
+    })
 
     expect(meResponse.status).toBe(401)
   })
@@ -84,6 +91,7 @@ describe('POST /auth/token/revoke', () => {
     const rotateResponse = await fetch('/auth/token/rotate', {
       method: 'POST',
       headers: {
+        ...xhrHeaders,
         'Content-Type': 'application/json',
         'X-CSRF-TOKEN': getMockCsrfToken(),
       },

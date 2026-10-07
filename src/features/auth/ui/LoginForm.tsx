@@ -2,15 +2,16 @@ import {
   Alert,
   Box,
   Button,
-  Container,
   Paper,
+  Stack,
   TextField,
   Typography,
 } from '@mui/material'
 import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { ApiError } from '../../../infrastructure/api/client.ts'
-import type { ValidationError } from '../../../shared/api/validationError.ts'
+import { isValidationError } from '../../../shared/api/validationError.ts'
+import { getSafePostLoginPath } from '../../../shared/lib/safeRedirect.ts'
 import { useAuth } from '../model/useAuth.ts'
 
 const FORM_FIELDS = ['email', 'password'] as const
@@ -18,24 +19,6 @@ const FORM_FIELDS = ['email', 'password'] as const
 type FormField = (typeof FORM_FIELDS)[number]
 
 type FieldErrors = Partial<Record<FormField, string>>
-
-function isValidationError(body: unknown): body is ValidationError {
-  if (typeof body !== 'object' || body === null || !('error' in body)) {
-    return false
-  }
-
-  const error = body.error
-
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'type' in error &&
-    error.type === 'ValidationException' &&
-    'payload' in error &&
-    typeof error.payload === 'object' &&
-    error.payload !== null
-  )
-}
 
 async function readLoginErrors(error: unknown): Promise<{
   fieldErrors: FieldErrors
@@ -59,47 +42,27 @@ async function readLoginErrors(error: unknown): Promise<{
     }
   }
 
-  const fieldErrors: FieldErrors = {}
-  const unknownErrors: string[] = []
-
-  if (isValidationError(body)) {
-    for (const [field, messages] of Object.entries(body.error.payload)) {
-      const message = messages[0]
-
-      if (!message) {
-        continue
-      }
-
-      if (FORM_FIELDS.includes(field as FormField)) {
-        fieldErrors[field as FormField] = message
-      } else {
-        unknownErrors.push(message)
-      }
-    }
-  } else if (
-    typeof body === 'object' &&
-    body !== null &&
-    'errors' in body &&
-    typeof body.errors === 'object' &&
-    body.errors !== null
-  ) {
-    for (const [field, message] of Object.entries(
-      body.errors as Record<string, unknown>,
-    )) {
-      if (typeof message !== 'string') {
-        continue
-      }
-
-      if (FORM_FIELDS.includes(field as FormField)) {
-        fieldErrors[field as FormField] = message
-      } else {
-        unknownErrors.push(message)
-      }
-    }
-  } else {
+  if (!isValidationError(body)) {
     return {
       fieldErrors: {},
       formError: 'Invalid credentials',
+    }
+  }
+
+  const fieldErrors: FieldErrors = {}
+  const unknownErrors: string[] = []
+
+  for (const [field, messages] of Object.entries(body.error.payload)) {
+    const message = messages[0]
+
+    if (!message) {
+      continue
+    }
+
+    if (FORM_FIELDS.includes(field as FormField)) {
+      fieldErrors[field as FormField] = message
+    } else {
+      unknownErrors.push(message)
     }
   }
 
@@ -112,6 +75,7 @@ async function readLoginErrors(error: unknown): Promise<{
 export function LoginForm() {
   const { login, isLoading } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -129,7 +93,7 @@ export function LoginForm() {
 
     try {
       await login(email, password)
-      navigate('/webhooks')
+      navigate(getSafePostLoginPath(searchParams.get('next')), { replace: true })
     } catch (error) {
       const nextErrors = await readLoginErrors(error)
       setFieldErrors(nextErrors.fieldErrors)
@@ -138,25 +102,51 @@ export function LoginForm() {
   }
 
   return (
-    <Container maxWidth="sm" sx={{ py: { xs: 4, sm: 8 }, px: 2 }}>
+    <Box
+      sx={{
+        minHeight: '100dvh',
+        display: 'grid',
+        placeItems: 'center',
+        px: 2,
+        py: 4,
+        background: (theme) =>
+          `radial-gradient(1200px 500px at 10% -10%, ${theme.palette.primary.main}14, transparent 55%),
+           radial-gradient(900px 420px at 100% 0%, ${theme.palette.secondary.main}18, transparent 50%),
+           ${theme.palette.background.default}`,
+      }}
+    >
       <Paper
         component="form"
         onSubmit={handleSubmit}
+        elevation={0}
         sx={{
+          width: '100%',
+          maxWidth: 420,
           display: 'flex',
           flexDirection: 'column',
           gap: 2.5,
           p: { xs: 3, sm: 4 },
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 3,
+          bgcolor: 'background.paper',
         }}
       >
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            Login
+        <Stack spacing={0.75}>
+          <Typography
+            variant="overline"
+            color="primary"
+            sx={{ letterSpacing: '0.14em', fontWeight: 700 }}
+          >
+            Smart Sender
+          </Typography>
+          <Typography variant="h4" component="h1">
+            Sign in
           </Typography>
           <Typography color="text.secondary">
-            Sign in to manage your webhooks.
+            Manage webhook endpoints for your workspace.
           </Typography>
-        </Box>
+        </Stack>
 
         {formError ? <Alert severity="error">{formError}</Alert> : null}
 
@@ -186,10 +176,16 @@ export function LoginForm() {
           fullWidth
         />
 
-        <Button type="submit" variant="contained" disabled={isLoading} fullWidth>
-          {isLoading ? 'Logging in...' : 'Login'}
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          disabled={isLoading}
+          fullWidth
+        >
+          {isLoading ? 'Signing in...' : 'Sign in'}
         </Button>
       </Paper>
-    </Container>
+    </Box>
   )
 }

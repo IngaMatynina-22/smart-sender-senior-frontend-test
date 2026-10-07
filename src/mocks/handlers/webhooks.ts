@@ -1,7 +1,13 @@
 import { http, HttpResponse } from 'msw'
 import type { ValidationError } from '../../shared/api/validationError.ts'
 import { validateCsrf } from '../csrf.ts'
+import {
+  authenticationErrorResponse,
+  notFoundErrorResponse,
+  validationErrorResponse,
+} from '../errors.ts'
 import { webhooks } from '../data.ts'
+import { validateRequestedWith } from '../requestedWith.ts'
 import { isSessionActive } from '../session.ts'
 
 const DEFAULT_PAGE = 1
@@ -49,22 +55,16 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
-function validationResponse(payload: ValidationError['error']['payload']) {
-  const body: ValidationError = {
-    error: {
-      type: 'ValidationException',
-      message: 'The given data was invalid.',
-      payload,
-    },
-  }
-
-  return HttpResponse.json(body, { status: 422 })
-}
-
 export const webhooksHandlers = [
   http.get('/v1/webhooks', ({ request }) => {
+    const requestedWithError = validateRequestedWith(request)
+
+    if (requestedWithError) {
+      return requestedWithError
+    }
+
     if (!isSessionActive()) {
-      return new HttpResponse(null, { status: 401 })
+      return authenticationErrorResponse()
     }
 
     const url = new URL(request.url)
@@ -81,14 +81,15 @@ export const webhooksHandlers = [
 
     const total = filtered.length
     const last = total === 0 ? 1 : Math.ceil(total / limit)
-    const start = (page - 1) * limit
+    const current = Math.min(page, last)
+    const start = (current - 1) * limit
     const data = filtered.slice(start, start + limit)
 
     return HttpResponse.json({
       data,
       paging: {
         pages: {
-          current: page,
+          current,
           last,
         },
         results: {
@@ -99,29 +100,37 @@ export const webhooksHandlers = [
     })
   }),
 
-  http.get('/v1/webhooks/:id', ({ params }) => {
+  http.get('/v1/webhooks/:id', ({ params, request }) => {
+    const requestedWithError = validateRequestedWith(request)
+
+    if (requestedWithError) {
+      return requestedWithError
+    }
+
     if (!isSessionActive()) {
-      return new HttpResponse(null, { status: 401 })
+      return authenticationErrorResponse()
     }
 
     const id = parseWebhookId(String(params.id))
 
     if (id === null) {
-      return new HttpResponse(null, { status: 404 })
+      return notFoundErrorResponse('Webhook not found.')
     }
 
     const webhook = webhooks.find((item) => item.id === id)
 
     if (!webhook) {
-      return new HttpResponse(null, { status: 404 })
+      return notFoundErrorResponse('Webhook not found.')
     }
 
     return HttpResponse.json(webhook)
   }),
 
   http.put('/v1/webhooks/:id', async ({ params, request }) => {
-    if (!isSessionActive()) {
-      return new HttpResponse(null, { status: 401 })
+    const requestedWithError = validateRequestedWith(request)
+
+    if (requestedWithError) {
+      return requestedWithError
     }
 
     const csrfError = validateCsrf(request)
@@ -130,16 +139,20 @@ export const webhooksHandlers = [
       return csrfError
     }
 
+    if (!isSessionActive()) {
+      return authenticationErrorResponse()
+    }
+
     const id = parseWebhookId(String(params.id))
 
     if (id === null) {
-      return new HttpResponse(null, { status: 404 })
+      return notFoundErrorResponse('Webhook not found.')
     }
 
     const index = findWebhookIndex(id)
 
     if (index === -1) {
-      return new HttpResponse(null, { status: 404 })
+      return notFoundErrorResponse('Webhook not found.')
     }
 
     let body: UpdateWebhookBody
@@ -147,7 +160,7 @@ export const webhooksHandlers = [
     try {
       body = (await request.json()) as UpdateWebhookBody
     } catch {
-      return validationResponse({
+      return validationErrorResponse({
         name: ['The name field is required.'],
         url: ['The url must be a valid URL.'],
       })
@@ -166,7 +179,7 @@ export const webhooksHandlers = [
     }
 
     if (Object.keys(payload).length > 0) {
-      return validationResponse(payload)
+      return validationErrorResponse(payload)
     }
 
     const updated = {

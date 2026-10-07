@@ -1,5 +1,12 @@
 import { http, HttpResponse } from 'msw'
+import { isValidFingerprint } from '../../shared/lib/fingerprint.ts'
 import { validateCsrf } from '../csrf.ts'
+import {
+  authenticationErrorResponse,
+  badRequestResponse,
+  validationErrorResponse,
+} from '../errors.ts'
+import { validateRequestedWith } from '../requestedWith.ts'
 import {
   canRotateSession,
   endSession,
@@ -41,73 +48,57 @@ type RevokeSessionBody = {
 }
 
 function captchaRequired() {
-  return HttpResponse.json(
-    {
-      errors: {
-        captcha: 'Captcha token is required',
-      },
-    },
-    { status: 422 },
-  )
+  return validationErrorResponse({
+    captcha: ['The captcha field is required.'],
+  })
 }
 
 function invalidBody() {
-  return HttpResponse.json(
-    {
-      errors: {
-        body: 'Invalid request body',
-      },
-    },
-    { status: 422 },
-  )
+  return validationErrorResponse({
+    body: ['The given data was invalid.'],
+  })
 }
 
 function unknownEmail() {
-  return HttpResponse.json(
-    {
-      errors: {
-        email: 'Invalid credentials',
-      },
-    },
-    { status: 422 },
-  )
+  return validationErrorResponse({
+    email: ['Invalid credentials.'],
+  })
 }
 
 function invalidPassword() {
-  return HttpResponse.json(
-    {
-      errors: {
-        password: 'Invalid credentials',
-      },
-    },
-    { status: 422 },
-  )
+  return validationErrorResponse({
+    password: ['Invalid credentials.'],
+  })
 }
 
 function invalidDeviceSessionToken() {
-  return HttpResponse.json(
-    {
-      errors: {
-        device_session_token: 'Invalid device session token',
-      },
-    },
-    { status: 422 },
-  )
+  return validationErrorResponse({
+    device_session_token: ['Invalid device session token.'],
+  })
 }
 
 function invalidFingerprint() {
-  return HttpResponse.json(
-    {
-      errors: {
-        fingerprint: 'Invalid fingerprint',
-      },
-    },
-    { status: 422 },
-  )
+  return validationErrorResponse({
+    fingerprint: ['Invalid fingerprint.'],
+  })
+}
+
+function readFingerprint(value: unknown): string | null {
+  if (typeof value !== 'string' || !isValidFingerprint(value)) {
+    return null
+  }
+
+  return value
 }
 
 export const authHandlers = [
   http.post('/auth/login', async ({ request }) => {
+    const requestedWithError = validateRequestedWith(request)
+
+    if (requestedWithError) {
+      return requestedWithError
+    }
+
     const csrfError = validateCsrf(request)
 
     if (csrfError) {
@@ -128,7 +119,11 @@ export const authHandlers = [
       return invalidBody()
     }
 
-    if (body?.email !== MOCK_USER.email) {
+    if (readFingerprint(body.fingerprint) === null) {
+      return invalidFingerprint()
+    }
+
+    if (body.email !== MOCK_USER.email) {
       return unknownEmail()
     }
 
@@ -142,6 +137,12 @@ export const authHandlers = [
   }),
 
   http.post('/auth/token/issue', async ({ request }) => {
+    const requestedWithError = validateRequestedWith(request)
+
+    if (requestedWithError) {
+      return requestedWithError
+    }
+
     const csrfError = validateCsrf(request)
 
     if (csrfError) {
@@ -156,22 +157,30 @@ export const authHandlers = [
       return invalidDeviceSessionToken()
     }
 
-    if (body?.device_session_token !== MOCK_DEVICE_SESSION_TOKEN) {
+    if (body.device_session_token !== MOCK_DEVICE_SESSION_TOKEN) {
       return invalidDeviceSessionToken()
     }
 
-    if (typeof body.fingerprint !== 'string' || body.fingerprint.trim() === '') {
+    const fingerprint = readFingerprint(body.fingerprint)
+
+    if (fingerprint === null) {
       return invalidFingerprint()
     }
 
-    startSession(body.fingerprint)
+    startSession(fingerprint)
 
     return new HttpResponse(null, { status: 200 })
   }),
 
-  http.get('/v1/me', () => {
+  http.get('/v1/me', ({ request }) => {
+    const requestedWithError = validateRequestedWith(request)
+
+    if (requestedWithError) {
+      return requestedWithError
+    }
+
     if (!isSessionActive()) {
-      return new HttpResponse(null, { status: 401 })
+      return authenticationErrorResponse()
     }
 
     return HttpResponse.json({
@@ -184,26 +193,48 @@ export const authHandlers = [
   }),
 
   http.post('/auth/token/rotate', async ({ request }) => {
+    const requestedWithError = validateRequestedWith(request)
+
+    if (requestedWithError) {
+      return requestedWithError
+    }
+
     const csrfError = validateCsrf(request)
 
     if (csrfError) {
       return csrfError
     }
 
-    try {
-      void ((await request.json()) as RotateSessionBody)
-    } catch {}
+    let body: RotateSessionBody
 
-    if (!canRotateSession()) {
-      return new HttpResponse(null, { status: 400 })
+    try {
+      body = (await request.json()) as RotateSessionBody
+    } catch {
+      return badRequestResponse('Invalid rotate request.')
     }
 
-    startSession()
+    const fingerprint = readFingerprint(body.fingerprint)
+
+    if (fingerprint === null || fingerprint !== getSessionFingerprint()) {
+      return badRequestResponse('Unable to rotate session.')
+    }
+
+    if (!canRotateSession()) {
+      return badRequestResponse('Unable to rotate session.')
+    }
+
+    startSession(fingerprint)
 
     return new HttpResponse(null, { status: 200 })
   }),
 
   http.post('/auth/token/revoke', async ({ request }) => {
+    const requestedWithError = validateRequestedWith(request)
+
+    if (requestedWithError) {
+      return requestedWithError
+    }
+
     const csrfError = validateCsrf(request)
 
     if (csrfError) {
@@ -218,16 +249,14 @@ export const authHandlers = [
       return invalidFingerprint()
     }
 
-    if (
-      typeof body.fingerprint !== 'string' ||
-      body.fingerprint.trim() === '' ||
-      body.fingerprint !== getSessionFingerprint()
-    ) {
+    const fingerprint = readFingerprint(body.fingerprint)
+
+    if (fingerprint === null || fingerprint !== getSessionFingerprint()) {
       return invalidFingerprint()
     }
 
     endSession()
 
-    return new HttpResponse(null, { status: 200 })
+    return new HttpResponse(null, { status: 204 })
   }),
 ]

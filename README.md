@@ -1,87 +1,71 @@
-# Smart Sender
+# Smart Sender — тестове завдання Senior Frontend Engineer
 
-Take-home frontend application for managing webhooks with login, session handling, CSRF protection, and list/edit flows. The backend is simulated with MSW.
+Невеликий React-застосунок: вхід, список вебхуків і редагування. Backend імітовано через MSW за контрактом із ТЗ.
 
-## Stack
+## Стек
 
-- React
-- TypeScript
+- React + TypeScript (strict)
 - Vite
-- MUI
 - React Router
+- MUI
 - MSW
 - Vitest
-- Testing Library
 
-## Run
+## Запуск
 
 ```bash
 npm install
 npm run dev
 ```
 
+Застосунок відкриється на адресі Vite (зазвичай `http://localhost:5173`).
+
+## Тести
+
+Обов’язковий сценарій із ТЗ (два паралельні запити з `401` → один спільний `rotate` → успішні повтори):
+
 ```bash
 npm test
 ```
 
-```bash
-npm run build
-```
+Файл: `src/features/auth/api.concurrent-401.test.ts`.
 
-## Test credentials
+## Тестові облікові дані
 
-From the mock auth handler:
+| Поле | Значення |
+|------|----------|
+| Email | `test@example.com` |
+| Password | `password123` |
 
-- Email: `test@example.com`
-- Password: `password123`
+Капча не потрібна: клієнт надсилає непорожній `X-Captcha-Token` автоматично.
 
-## Architecture
+## Що реалізовано
+
+1. **Вхід і сесія** — login → `device_session_token` (лише в пам’яті) → `/auth/token/issue` → `/v1/me` → список вебхуків. Fingerprint (32 hex) у `localStorage`. Сесія в моку (аналог HttpOnly-cookie), TTL 30 с, спільний `/auth/token/rotate` на паралельні `401`, logout через `/auth/token/revoke`.
+2. **CSRF** — `GET /csrf`, заголовок `X-Requested-With: XMLHttpRequest` на всіх запитах, `X-CSRF-TOKEN` на `POST`/`PUT`, один повтор після `419`.
+3. **Список вебхуків** — таблиця (назва, URL, активність), пагінація по 10, пошук за назвою, `page`/`search` у URL, стани loading / empty / error.
+4. **Редагування** — модальне вікно; серверні помилки валідації біля полів.
+
+## Ключові рішення
+
+- **Шар API** (`infrastructure/api`) відокремлений від UI: перед будь-яким API виконується `GET /csrf` (спільний in-flight), на `POST`/`PUT` додається `X-CSRF-TOKEN`, один retry на `419`, один спільний `rotate` на паралельні `401`.
+- **Сесія** — `device_session_token` лише в пам’яті; fingerprint у `localStorage`; серверна сесія лише в MSW (аналог HttpOnly-cookie). Після expire — локальний logout і повернення на login зі збереженням безпечного `next` (`/webhooks...` only).
+- **Стан списку** — `page`/`search` у URL; пошук з debounce, refine через `history.replace`, пагінація через `push`; out-of-range `page` кліпиться; список оновлюється без повного blank (stale-while-revalidate).
+- **Фічі** (`features/auth`, `features/webhooks`) тримають API-виклики, хуки й UI поруч; `pages` лише збирають екран; без зайвого global store.
+- **MSW** — один користувач, 27 вебхуків, стан у пам’яті; CSRF на mutating-запитах до операції; помилки у форматі контракту.
+
+## Структура
 
 ```text
 src/
-├── app/             # router, providers, app shell
-├── pages/           # route-level composition
-├── features/        # feature UI, hooks, API calls
-├── shared/          # small shared helpers/types
-├── infrastructure/  # apiClient, CSRF, session rotate
-└── mocks/           # MSW handlers and in-memory state
+├── app/             # router, providers
+├── pages/           # сторінки маршрутів
+├── features/        # auth, webhooks (api / model / ui)
+├── infrastructure/  # HTTP-клієнт, CSRF, rotate, session-expired
+├── shared/          # fingerprint, типи помилок
+└── mocks/           # MSW handlers і in-memory стан
 ```
 
-- Feature-specific logic stays inside `features/*`.
-- Transport concerns (HTTP client, CSRF, session rotate, expiration) live in `infrastructure`.
-- MSW mocks the backend for local development and tests.
-- Pages compose features for routes.
-- No global state manager: auth context plus local/URL state is enough for this app size.
+## Незавершене
 
-## Important decisions
-
-### Session
-
-- `device_session_token` is not stored in `localStorage`.
-- Fingerprint is stored in `localStorage`.
-- Session token exists only in the mock in-memory/cookie model.
-- `401` triggers a shared rotate request.
-- Concurrent `401` responses share one rotate.
-- Rotate retry happens at most once.
-- After a failed rotate/retry, the session is treated as ended and the user is logged out locally.
-
-### CSRF
-
-- `GET /csrf` runs before the first mutating request.
-- CSRF token is kept in memory.
-- `POST` / `PUT` send `X-CSRF-TOKEN`.
-- `419` triggers one CSRF refresh + one retry.
-- `/csrf` itself is fetched with plain `fetch` to avoid a client/csrf dependency cycle.
-
-### URL state
-
-- `page` and `search` live in the URL and are the source of truth.
-- Browser Back/Forward restore list state automatically.
-- `limit` stays an internal constant (`10`).
-
-### Mock backend
-
-- MSW handlers simulate auth, CSRF, and webhooks.
-- There are 27 webhook records.
-- Mock state lives only in memory and resets on reload.
-- Manual logout calls `POST /auth/token/revoke`; automatic session expiration only clears local auth state.
+Усе з основного скоупу ТЗ реалізовано.

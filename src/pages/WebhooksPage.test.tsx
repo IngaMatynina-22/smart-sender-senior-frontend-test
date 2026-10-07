@@ -163,11 +163,12 @@ describe('WebhooksPage list states', () => {
     expect(screen.queryByText('Failed to load webhooks.')).toBeNull()
   })
 
-  it('does not crash when page is beyond search results', async () => {
-    renderWebhooksPage('/webhooks?page=5&search=payment')
+  it('clamps page when it is beyond search results', async () => {
+    const router = renderWebhooksPage('/webhooks?page=5&search=payment')
 
     await waitFor(() => {
-      expect(screen.getByText('No webhooks found.')).toBeTruthy()
+      expect(screen.getByText('Payment Completed')).toBeTruthy()
+      expect(router.state.location.search).toBe('?page=1&search=payment')
     })
 
     expect(screen.getByLabelText('Search webhooks')).toHaveProperty(

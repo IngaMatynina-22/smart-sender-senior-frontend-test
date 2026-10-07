@@ -52,7 +52,7 @@ beforeEach(() => {
   clearCsrfToken()
   server.resetHandlers()
   requested.length = 0
-  startSession('test-fingerprint')
+  startSession('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
 })
 
 afterEach(() => {
@@ -126,16 +126,20 @@ describe('CSRF 419 retry', () => {
     )
   })
 
-  it('does not attach CSRF token to GET requests', async () => {
+  it('bootstraps CSRF before GET and does not attach the token to GET', async () => {
     await apiClient.get('/v1/webhooks?page=1&limit=10')
 
-    const getRequest = requested.find(
+    const csrfIndex = requested.findIndex(
+      (entry) => entry.method === 'GET' && entry.path === '/csrf',
+    )
+    const getIndex = requested.findIndex(
       (entry) =>
         entry.method === 'GET' && entry.path === '/v1/webhooks',
     )
 
-    expect(getRequest).toBeTruthy()
-    expect(getRequest?.csrf).toBeNull()
+    expect(csrfIndex).toBeGreaterThanOrEqual(0)
+    expect(getIndex).toBeGreaterThan(csrfIndex)
+    expect(requested[getIndex]?.csrf).toBeNull()
   })
 
   it('does not run CSRF retry for /csrf itself', async () => {

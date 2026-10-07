@@ -1,3 +1,4 @@
+import { getFingerprint } from '../../shared/lib/fingerprint.ts'
 import { getCsrfToken, refreshCsrfToken } from './csrf.ts'
 import { notifySessionExpired } from './sessionExpired.ts'
 
@@ -63,10 +64,18 @@ function shouldRetryAfterCsrfMismatch(
   )
 }
 
-async function rotateSharedSession(): Promise<void> {
+export async function rotateSession(): Promise<void> {
   if (!rotatePromise) {
-    rotatePromise = import('./session.ts')
-      .then(({ rotateSession }) => rotateSession())
+    rotatePromise = request(ROTATE_SESSION_PATH, 'POST', {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        fingerprint: getFingerprint(),
+      }),
+      skipAuthRetry: true,
+    })
+      .then(() => undefined)
       .finally(() => {
         rotatePromise = null
       })
@@ -80,10 +89,12 @@ async function request(
   method: string,
   options?: ApiRequestOptions,
 ): Promise<Response> {
+  // Bootstrap CSRF before any other API call (TZ: GET /csrf first).
+  const csrfToken = await getCsrfToken()
   const headers = createHeaders(options?.headers)
 
   if (method === 'POST' || method === 'PUT') {
-    headers.set(CSRF_TOKEN_HEADER, await getCsrfToken())
+    headers.set(CSRF_TOKEN_HEADER, csrfToken)
   }
 
   const response = await fetch(url, {
@@ -107,7 +118,7 @@ async function request(
 
   if (shouldRetryAfterUnauthorized(url, response.status, options)) {
     try {
-      await rotateSharedSession()
+      await rotateSession()
     } catch (error) {
       notifySessionExpired()
       throw error

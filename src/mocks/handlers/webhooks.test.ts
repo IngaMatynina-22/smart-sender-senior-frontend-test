@@ -36,12 +36,20 @@ afterEach(() => {
   resetCsrfState()
 })
 
+const xhrHeaders = {
+  'X-Requested-With': 'XMLHttpRequest',
+} as const
+
 async function getWebhooks(query = '') {
-  return fetch(`/v1/webhooks${query}`)
+  return fetch(`/v1/webhooks${query}`, {
+    headers: xhrHeaders,
+  })
 }
 
 async function getWebhook(id: number | string) {
-  return fetch(`/v1/webhooks/${id}`)
+  return fetch(`/v1/webhooks/${id}`, {
+    headers: xhrHeaders,
+  })
 }
 
 async function putWebhook(
@@ -51,6 +59,7 @@ async function putWebhook(
   return fetch(`/v1/webhooks/${id}`, {
     method: 'PUT',
     headers: {
+      ...xhrHeaders,
       'Content-Type': 'application/json',
       'X-CSRF-TOKEN': getMockCsrfToken(),
     },
@@ -109,6 +118,18 @@ describe('GET /v1/webhooks', () => {
     expect(body.paging.results.total).toBe(3)
     expect(body.paging.pages.last).toBe(1)
     expect(body.paging.results.limitation).toBe(10)
+  })
+
+  it('clamps page to the last available page', async () => {
+    startSession()
+
+    const response = await getWebhooks('?search=payment&page=9&limit=10')
+    const body = await response.json()
+
+    expect(response.status).toBe(200)
+    expect(body.paging.pages.current).toBe(1)
+    expect(body.paging.pages.last).toBe(1)
+    expect(body.data).toHaveLength(3)
   })
 
   it('returns 401 when session is expired', async () => {

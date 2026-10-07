@@ -97,7 +97,11 @@ describe('AuthProvider logout', () => {
       expect(screen.getByTestId('user-email').textContent).toBe('')
     })
 
-    const meResponse = await fetch('/v1/me')
+    const meResponse = await fetch('/v1/me', {
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+    })
     expect(meResponse.status).toBe(401)
   })
 })

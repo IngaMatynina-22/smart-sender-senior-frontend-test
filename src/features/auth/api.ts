@@ -1,5 +1,7 @@
-import { apiClient } from '../../infrastructure/api/client.ts'
-import { rotateSession as rotateSessionRequest } from '../../infrastructure/api/session.ts'
+import {
+  apiClient,
+  rotateSession as rotateSessionRequest,
+} from '../../infrastructure/api/client.ts'
 import { getFingerprint } from '../../shared/lib/fingerprint.ts'
 import type { User } from './model/types.ts'
 
