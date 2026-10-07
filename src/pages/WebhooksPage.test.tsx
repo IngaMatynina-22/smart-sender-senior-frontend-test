@@ -12,6 +12,7 @@ import {
   it,
 } from 'vitest'
 import { handlers } from '../mocks/browser.ts'
+import { resetWebhooks, webhooks } from '../mocks/data.ts'
 import { resetSession, startSession } from '../mocks/session.ts'
 import { WebhooksPage } from './WebhooksPage.tsx'
 
@@ -52,6 +53,7 @@ afterAll(() => {
 
 beforeEach(() => {
   resetSession()
+  resetWebhooks()
   server.resetHandlers()
   requestedUrls.length = 0
   startSession()
@@ -60,6 +62,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup()
   resetSession()
+  resetWebhooks()
 })
 
 describe('WebhooksPage list states', () => {
@@ -161,6 +164,134 @@ describe('WebhooksPage list states', () => {
       'payment',
     )
     expect(screen.queryByText('Failed to load webhooks.')).toBeNull()
+  })
+})
+
+describe('WebhooksPage edit webhook', () => {
+  it('opens edit dialog, loads form, saves, and refreshes the list', async () => {
+    renderWebhooksPage('/webhooks?page=1')
+
+    await waitFor(() => {
+      expect(screen.getByText('Order Created')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Order Created' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Edit webhook')).toBeTruthy()
+      expect(screen.getByLabelText('Name')).toHaveProperty(
+        'value',
+        'Order Created',
+      )
+      expect(screen.getByLabelText('URL')).toHaveProperty(
+        'value',
+        'https://hooks.example.com/orders/created',
+      )
+    })
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'Order Created From List' },
+    })
+    fireEvent.change(screen.getByLabelText('URL'), {
+      target: { value: 'https://hooks.example.com/orders/from-list' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(screen.queryByText('Edit webhook')).toBeNull()
+      expect(screen.getByText('Order Created From List')).toBeTruthy()
+      expect(
+        screen.getByText('https://hooks.example.com/orders/from-list'),
+      ).toBeTruthy()
+    })
+  })
+
+  it('shows loading then field validation errors in the edit dialog', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+
+    server.use(
+      http.get('/v1/webhooks/:id', async ({ params }) => {
+        await gate
+        const webhook = webhooks.find(
+          (item) => item.id === Number(params.id),
+        )
+
+        if (!webhook) {
+          return new HttpResponse(null, { status: 404 })
+        }
+
+        return HttpResponse.json(webhook)
+      }),
+    )
+
+    renderWebhooksPage('/webhooks?page=1')
+
+    await waitFor(() => {
+      expect(screen.getByText('Order Created')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Order Created' }))
+
+    expect(screen.getByText('Loading webhook...')).toBeTruthy()
+
+    release()
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Name')).toBeTruthy()
+    })
+
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: '' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('The name field is required.')).toBeTruthy()
+    })
+  })
+
+  it('does not send PUT when Cancel is clicked', async () => {
+    const putUrls: string[] = []
+
+    function onPutRequest(event: { request: Request }) {
+      if (event.request.method === 'PUT') {
+        putUrls.push(event.request.url)
+      }
+    }
+
+    server.events.on('request:start', onPutRequest)
+
+    try {
+      renderWebhooksPage('/webhooks?page=1')
+
+      await waitFor(() => {
+        expect(screen.getByText('Order Created')).toBeTruthy()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Edit Order Created' }))
+
+      await waitFor(() => {
+        expect(screen.getByLabelText('Name')).toBeTruthy()
+      })
+
+      fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: 'Should Not Persist' },
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+      await waitFor(() => {
+        expect(screen.queryByText('Edit webhook')).toBeNull()
+      })
+
+      expect(putUrls).toEqual([])
+      expect(screen.getByText('Order Created')).toBeTruthy()
+      expect(screen.queryByText('Should Not Persist')).toBeNull()
+    } finally {
+      server.events.removeListener('request:start', onPutRequest)
+    }
   })
 })
 

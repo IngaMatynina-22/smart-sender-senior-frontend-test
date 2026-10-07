@@ -1,14 +1,20 @@
-import { type ChangeEvent } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import {
   Alert,
   Box,
   CircularProgress,
   Container,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   Paper,
   Typography,
 } from '@mui/material'
 import { useSearchParams } from 'react-router'
+import { useWebhook } from '../features/webhooks/model/useWebhook.ts'
 import { useWebhooks } from '../features/webhooks/model/useWebhooks.ts'
+import type { Webhook } from '../features/webhooks/model/types.ts'
+import { WebhookForm } from '../features/webhooks/ui/WebhookForm.tsx'
 import { WebhooksPagination } from '../features/webhooks/ui/WebhooksPagination.tsx'
 import { WebhooksSearch } from '../features/webhooks/ui/WebhooksSearch.tsx'
 import { WebhooksTable } from '../features/webhooks/ui/WebhooksTable.tsx'
@@ -40,12 +46,65 @@ function buildWebhooksSearchParams(page: number, search: string): URLSearchParam
   return params
 }
 
+type EditWebhookDialogProps = {
+  webhookId: number
+  onClose: () => void
+  onSaved: () => void
+}
+
+function EditWebhookDialog({
+  webhookId,
+  onClose,
+  onSaved,
+}: EditWebhookDialogProps) {
+  const { data, isLoading, error } = useWebhook(webhookId)
+
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+      <DialogTitle>Edit webhook</DialogTitle>
+      <DialogContent>
+        {isLoading ? (
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 2,
+              py: 4,
+            }}
+          >
+            <CircularProgress />
+            <Typography color="text.secondary">Loading webhook...</Typography>
+          </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ mt: 1 }}>
+            {error.response.status === 404
+              ? 'Webhook not found.'
+              : 'Failed to load webhook.'}
+          </Alert>
+        ) : data ? (
+          <Box sx={{ pt: 1 }}>
+            <WebhookForm
+              webhook={data}
+              onSuccess={() => {
+                onSaved()
+              }}
+              onCancel={onClose}
+            />
+          </Box>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function WebhooksPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const page = parsePage(searchParams.get('page'))
   const search = searchParams.get('search') ?? ''
+  const [editingWebhookId, setEditingWebhookId] = useState<number | null>(null)
 
-  const { data, isLoading, error } = useWebhooks({
+  const { data, isLoading, error, refetch } = useWebhooks({
     page,
     limit: LIMIT,
     search,
@@ -57,6 +116,19 @@ export function WebhooksPage() {
 
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
     setSearchParams(buildWebhooksSearchParams(1, event.target.value))
+  }
+
+  const handleEdit = (webhook: Webhook) => {
+    setEditingWebhookId(webhook.id)
+  }
+
+  const handleCloseEdit = () => {
+    setEditingWebhookId(null)
+  }
+
+  const handleSaved = () => {
+    setEditingWebhookId(null)
+    refetch()
   }
 
   return (
@@ -89,7 +161,7 @@ export function WebhooksPage() {
           </Typography>
         ) : (
           <>
-            <WebhooksTable webhooks={data.data} />
+            <WebhooksTable webhooks={data.data} onEdit={handleEdit} />
             {data.paging.pages.last > 1 ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', pt: 2 }}>
                 <WebhooksPagination
@@ -102,6 +174,14 @@ export function WebhooksPage() {
           </>
         )}
       </Paper>
+
+      {editingWebhookId !== null ? (
+        <EditWebhookDialog
+          webhookId={editingWebhookId}
+          onClose={handleCloseEdit}
+          onSaved={handleSaved}
+        />
+      ) : null}
     </Container>
   )
 }

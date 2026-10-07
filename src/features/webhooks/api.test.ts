@@ -9,16 +9,24 @@ import {
   it,
 } from 'vitest'
 import { handlers } from '../../mocks/browser.ts'
+import { resetWebhooks } from '../../mocks/data.ts'
 import { resetSession, startSession } from '../../mocks/session.ts'
-import { getWebhooks } from './api.ts'
-import type { WebhookList } from './model/types.ts'
+import { getWebhook, getWebhooks, updateWebhook } from './api.ts'
+import type { Webhook, WebhookList } from './model/types.ts'
 
 const server = setupServer(...handlers)
 
-const requestedUrls: string[] = []
+const requested: Array<{ method: string; url: string; body: string | null }> =
+  []
 
-function onRequestStart(event: { request: Request }) {
-  requestedUrls.push(event.request.url)
+async function onRequestStart(event: { request: Request }) {
+  const body = await event.request.clone().text()
+
+  requested.push({
+    method: event.request.method,
+    url: event.request.url,
+    body: body === '' ? null : body,
+  })
 }
 
 beforeAll(() => {
@@ -33,13 +41,15 @@ afterAll(() => {
 
 beforeEach(() => {
   resetSession()
+  resetWebhooks()
   server.resetHandlers()
-  requestedUrls.length = 0
+  requested.length = 0
   startSession()
 })
 
 afterEach(() => {
   resetSession()
+  resetWebhooks()
 })
 
 describe('getWebhooks', () => {
@@ -49,9 +59,13 @@ describe('getWebhooks', () => {
       limit: 10,
     })
 
-    expect(requestedUrls.some((url) => url.includes('/v1/webhooks?page=1&limit=10'))).toBe(
-      true,
-    )
+    expect(
+      requested.some(
+        (entry) =>
+          entry.method === 'GET' &&
+          entry.url.includes('/v1/webhooks?page=1&limit=10'),
+      ),
+    ).toBe(true)
     expect(result.data).toHaveLength(10)
     expect(result.paging).toEqual({
       pages: {
@@ -73,8 +87,8 @@ describe('getWebhooks', () => {
     })
 
     expect(
-      requestedUrls.some((url) =>
-        url.includes('/v1/webhooks?page=1&limit=10&search=payment'),
+      requested.some((entry) =>
+        entry.url.includes('/v1/webhooks?page=1&limit=10&search=payment'),
       ),
     ).toBe(true)
     expect(result.data.map((webhook) => webhook.name)).toEqual([
@@ -83,5 +97,53 @@ describe('getWebhooks', () => {
       'Payment Refunded',
     ])
     expect(result.paging.results.total).toBe(3)
+  })
+})
+
+describe('getWebhook', () => {
+  it('requests a webhook by id and returns Webhook', async () => {
+    const result: Webhook = await getWebhook(1)
+
+    expect(
+      requested.some(
+        (entry) =>
+          entry.method === 'GET' && entry.url.includes('/v1/webhooks/1'),
+      ),
+    ).toBe(true)
+    expect(result).toMatchObject({
+      id: 1,
+      name: 'Order Created',
+      url: 'https://hooks.example.com/orders/created',
+    })
+  })
+})
+
+describe('updateWebhook', () => {
+  it('sends PUT with JSON body and returns the updated webhook', async () => {
+    const result: Webhook = await updateWebhook(1, {
+      name: 'Updated Order',
+      url: 'https://hooks.example.com/orders/updated-path',
+    })
+
+    await expect
+      .poll(() =>
+        requested.find(
+          (entry) =>
+            entry.method === 'PUT' && entry.url.includes('/v1/webhooks/1'),
+        ),
+      )
+      .toMatchObject({
+        method: 'PUT',
+        body: JSON.stringify({
+          name: 'Updated Order',
+          url: 'https://hooks.example.com/orders/updated-path',
+        }),
+      })
+
+    expect(result).toMatchObject({
+      id: 1,
+      name: 'Updated Order',
+      url: 'https://hooks.example.com/orders/updated-path',
+    })
   })
 })

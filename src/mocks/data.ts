@@ -1,6 +1,6 @@
 import type { Webhook } from '../features/webhooks/model/types.ts'
 
-export const webhooks: Webhook[] = [
+const INITIAL_WEBHOOKS: Webhook[] = [
   {
     id: 1,
     name: 'Order Created',
@@ -191,3 +191,15 @@ export const webhooks: Webhook[] = [
     created_at: '2025-01-29T14:25:00.000Z',
   },
 ]
+
+export const webhooks: Webhook[] = INITIAL_WEBHOOKS.map((webhook) => ({
+  ...webhook,
+}))
+
+export function resetWebhooks(): void {
+  webhooks.splice(
+    0,
+    webhooks.length,
+    ...INITIAL_WEBHOOKS.map((webhook) => ({ ...webhook })),
+  )
+}

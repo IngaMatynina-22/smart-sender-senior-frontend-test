@@ -11,6 +11,7 @@ import {
   it,
 } from 'vitest'
 import { handlers } from '../../../mocks/browser.ts'
+import { resetWebhooks } from '../../../mocks/data.ts'
 import { resetSession, startSession } from '../../../mocks/session.ts'
 import { useWebhooks } from './useWebhooks.ts'
 
@@ -26,12 +27,14 @@ afterAll(() => {
 
 beforeEach(() => {
   resetSession()
+  resetWebhooks()
   server.resetHandlers()
   startSession()
 })
 
 afterEach(() => {
   resetSession()
+  resetWebhooks()
 })
 
 describe('useWebhooks', () => {

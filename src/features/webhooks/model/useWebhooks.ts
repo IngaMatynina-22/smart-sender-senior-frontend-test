@@ -7,6 +7,7 @@ export type UseWebhooksResult = {
   data: WebhookList | null
   isLoading: boolean
   error: ApiError | null
+  refetch: () => void
 }
 
 export function useWebhooks({
@@ -17,6 +18,7 @@ export function useWebhooks({
   const [data, setData] = useState<WebhookList | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<ApiError | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -50,11 +52,14 @@ export function useWebhooks({
     return () => {
       cancelled = true
     }
-  }, [page, limit, search])
+  }, [page, limit, search, reloadToken])
 
   return {
     data,
     isLoading,
     error,
+    refetch: () => {
+      setReloadToken((value) => value + 1)
+    },
   }
 }
