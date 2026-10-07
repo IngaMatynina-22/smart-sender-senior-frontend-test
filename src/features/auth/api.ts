@@ -2,6 +2,7 @@ import { apiClient } from '../../infrastructure/api/client.ts'
 import { getFingerprint } from '../../shared/lib/fingerprint.ts'
 
 const LOGIN_PATH = '/auth/login'
+const ISSUE_SESSION_PATH = '/auth/token/issue'
 const CAPTCHA_HEADER = 'X-Captcha-Token'
 
 export type LoginResponse = {
@@ -28,14 +29,14 @@ export async function login(
   return (await response.json()) as LoginResponse
 }
 
-export async function issueDeviceSession(): Promise<void> {
-  return
-}
-
-export async function getMe(): Promise<void> {
-  return
-}
-
-export async function logout(): Promise<void> {
-  return
+export async function issueDeviceSession(deviceSessionToken: string): Promise<void> {
+  await apiClient.post(ISSUE_SESSION_PATH, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      device_session_token: deviceSessionToken,
+      fingerprint: getFingerprint(),
+    }),
+  })
 }

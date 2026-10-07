@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw'
+import { startSession } from '../session.ts'
 
 const MOCK_USER = {
   email: 'test@example.com',
@@ -12,6 +13,11 @@ const CAPTCHA_HEADER = 'X-Captcha-Token'
 type LoginBody = {
   email?: string
   password?: string
+  fingerprint?: string
+}
+
+type IssueSessionBody = {
+  device_session_token?: string
   fingerprint?: string
 }
 
@@ -59,6 +65,17 @@ function invalidPassword() {
   )
 }
 
+function invalidDeviceSessionToken() {
+  return HttpResponse.json(
+    {
+      errors: {
+        device_session_token: 'Invalid device session token',
+      },
+    },
+    { status: 422 },
+  )
+}
+
 export const authHandlers = [
   http.post('/auth/login', async ({ request }) => {
     const captchaToken = request.headers.get(CAPTCHA_HEADER)
@@ -86,5 +103,23 @@ export const authHandlers = [
     return HttpResponse.json({
       device_session_token: MOCK_DEVICE_SESSION_TOKEN,
     })
+  }),
+
+  http.post('/auth/token/issue', async ({ request }) => {
+    let body: IssueSessionBody
+
+    try {
+      body = (await request.json()) as IssueSessionBody
+    } catch {
+      return invalidDeviceSessionToken()
+    }
+
+    if (body?.device_session_token !== MOCK_DEVICE_SESSION_TOKEN) {
+      return invalidDeviceSessionToken()
+    }
+
+    startSession()
+
+    return new HttpResponse(null, { status: 200 })
   }),
 ]
