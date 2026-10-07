@@ -26,7 +26,29 @@ function captchaRequired() {
   )
 }
 
-function invalidCredentials() {
+function invalidBody() {
+  return HttpResponse.json(
+    {
+      errors: {
+        body: 'Invalid request body',
+      },
+    },
+    { status: 422 },
+  )
+}
+
+function unknownEmail() {
+  return HttpResponse.json(
+    {
+      errors: {
+        email: 'Invalid credentials',
+      },
+    },
+    { status: 422 },
+  )
+}
+
+function invalidPassword() {
   return HttpResponse.json(
     {
       errors: {
@@ -50,11 +72,15 @@ export const authHandlers = [
     try {
       body = (await request.json()) as LoginBody
     } catch {
-      return invalidCredentials()
+      return invalidBody()
     }
 
-    if (body?.email !== MOCK_USER.email || body.password !== MOCK_USER.password) {
-      return invalidCredentials()
+    if (body?.email !== MOCK_USER.email) {
+      return unknownEmail()
+    }
+
+    if (body.password !== MOCK_USER.password) {
+      return invalidPassword()
     }
 
     return HttpResponse.json({
