@@ -1,4 +1,5 @@
 import { getCsrfToken } from './csrf.ts'
+import { notifySessionExpired } from './sessionExpired.ts'
 
 export class ApiError extends Error {
   readonly response: Response
@@ -80,12 +81,21 @@ async function request(
   }
 
   if (shouldRetryAfterUnauthorized(url, response.status, options)) {
-    await rotateSharedSession()
+    try {
+      await rotateSharedSession()
+    } catch (error) {
+      notifySessionExpired()
+      throw error
+    }
 
     return request(url, method, {
       ...options,
       skipAuthRetry: true,
     })
+  }
+
+  if (response.status === 401 && options?.skipAuthRetry) {
+    notifySessionExpired()
   }
 
   throw new ApiError(response)

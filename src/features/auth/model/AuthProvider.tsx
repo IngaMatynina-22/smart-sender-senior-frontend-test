@@ -1,11 +1,16 @@
 import {
   createContext,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react'
+import {
+  clearSessionExpiredNotification,
+  registerSessionExpiredHandler,
+} from '../../../infrastructure/api/sessionExpired.ts'
 import {
   getMe,
   issueDeviceSession,
@@ -32,6 +37,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(false)
   const loginInFlightRef = useRef(false)
 
+  useEffect(() => {
+    registerSessionExpiredHandler(() => {
+      setUser(null)
+    })
+
+    return () => {
+      registerSessionExpiredHandler(null)
+    }
+  }, [])
+
   const login = useCallback(async (email: string, password: string) => {
     if (loginInFlightRef.current) {
       return
@@ -44,6 +59,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { device_session_token } = await loginRequest(email, password)
       await issueDeviceSession(device_session_token)
       const currentUser = await getMe()
+      clearSessionExpiredNotification()
       setUser(currentUser)
     } finally {
       loginInFlightRef.current = false

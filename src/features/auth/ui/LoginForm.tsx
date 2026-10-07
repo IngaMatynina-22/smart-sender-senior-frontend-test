@@ -1,5 +1,6 @@
 import { Alert, Box, Button, TextField, Typography } from '@mui/material'
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router'
 import { ApiError } from '../../../infrastructure/api/client.ts'
 import type { ValidationError } from '../../../shared/api/validationError.ts'
 import { useAuth } from '../model/useAuth.ts'
@@ -102,6 +103,7 @@ async function readLoginErrors(error: unknown): Promise<{
 
 export function LoginForm() {
   const { login, isLoading } = useAuth()
+  const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -119,6 +121,7 @@ export function LoginForm() {
 
     try {
       await login(email, password)
+      navigate('/webhooks')
     } catch (error) {
       const nextErrors = await readLoginErrors(error)
       setFieldErrors(nextErrors.fieldErrors)
