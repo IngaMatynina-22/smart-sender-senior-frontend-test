@@ -22,7 +22,7 @@ function onRequestStart(event: { request: Request }) {
 }
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' })
+  server.listen({ onUnhandledFrame: 'error' })
   server.events.on('request:start', onRequestStart)
 })
 

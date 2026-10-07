@@ -17,7 +17,7 @@ import { useWebhooks } from './useWebhooks.ts'
 const server = setupServer(...handlers)
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' })
+  server.listen({ onUnhandledFrame: 'error' })
 })
 
 afterAll(() => {

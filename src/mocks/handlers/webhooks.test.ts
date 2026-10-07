@@ -14,7 +14,7 @@ import { resetSession, startSession } from '../session.ts'
 const server = setupServer(...handlers)
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' })
+  server.listen({ onUnhandledFrame: 'error' })
 })
 
 afterAll(() => {

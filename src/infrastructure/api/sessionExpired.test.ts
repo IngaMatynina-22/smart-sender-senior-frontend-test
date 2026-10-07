@@ -42,7 +42,7 @@ function onMockedResponse(event: {
 }
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' })
+  server.listen({ onUnhandledFrame: 'error' })
   server.events.on('response:mocked', onMockedResponse)
 })
 
