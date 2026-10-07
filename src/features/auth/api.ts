@@ -7,6 +7,7 @@ const ISSUE_SESSION_PATH = '/auth/token/issue'
 const ROTATE_SESSION_PATH = '/auth/token/rotate'
 const ME_PATH = '/v1/me'
 const CAPTCHA_HEADER = 'X-Captcha-Token'
+const MOCK_CAPTCHA_TOKEN = 'mock-captcha-token'
 
 export type LoginResponse = {
   device_session_token: string
@@ -15,12 +16,11 @@ export type LoginResponse = {
 export async function login(
   email: string,
   password: string,
-  captchaToken: string,
 ): Promise<LoginResponse> {
   const response = await apiClient.post(LOGIN_PATH, {
     headers: {
       'Content-Type': 'application/json',
-      [CAPTCHA_HEADER]: captchaToken,
+      [CAPTCHA_HEADER]: MOCK_CAPTCHA_TOKEN,
     },
     body: JSON.stringify({
       email,

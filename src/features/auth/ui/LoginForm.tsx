@@ -4,7 +4,7 @@ import { ApiError } from '../../../infrastructure/api/client.ts'
 import type { ValidationError } from '../../../shared/api/validationError.ts'
 import { useAuth } from '../model/useAuth.ts'
 
-const FORM_FIELDS = ['email', 'password', 'captcha'] as const
+const FORM_FIELDS = ['email', 'password'] as const
 
 type FormField = (typeof FORM_FIELDS)[number]
 
@@ -104,7 +104,6 @@ export function LoginForm() {
   const { login, isLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [captchaToken, setCaptchaToken] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -119,7 +118,7 @@ export function LoginForm() {
     setFormError(null)
 
     try {
-      await login(email, password, captchaToken)
+      await login(email, password)
     } catch (error) {
       const nextErrors = await readLoginErrors(error)
       setFieldErrors(nextErrors.fieldErrors)
@@ -170,17 +169,6 @@ export function LoginForm() {
         helperText={fieldErrors.password}
         disabled={isLoading}
         autoComplete="current-password"
-        fullWidth
-      />
-
-      <TextField
-        label="Captcha token"
-        name="captcha"
-        value={captchaToken}
-        onChange={(event) => setCaptchaToken(event.target.value)}
-        error={Boolean(fieldErrors.captcha)}
-        helperText={fieldErrors.captcha}
-        disabled={isLoading}
         fullWidth
       />
 

@@ -17,7 +17,7 @@ export type AuthContextValue = {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
-  login: (email: string, password: string, captchaToken: string) => Promise<void>
+  login: (email: string, password: string) => Promise<void>
   logout: () => void
 }
 
@@ -32,31 +32,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [isLoading, setIsLoading] = useState(false)
   const loginInFlightRef = useRef(false)
 
-  const login = useCallback(
-    async (email: string, password: string, captchaToken: string) => {
-      if (loginInFlightRef.current) {
-        return
-      }
+  const login = useCallback(async (email: string, password: string) => {
+    if (loginInFlightRef.current) {
+      return
+    }
 
-      loginInFlightRef.current = true
-      setIsLoading(true)
+    loginInFlightRef.current = true
+    setIsLoading(true)
 
-      try {
-        const { device_session_token } = await loginRequest(
-          email,
-          password,
-          captchaToken,
-        )
-        await issueDeviceSession(device_session_token)
-        const currentUser = await getMe()
-        setUser(currentUser)
-      } finally {
-        loginInFlightRef.current = false
-        setIsLoading(false)
-      }
-    },
-    [],
-  )
+    try {
+      const { device_session_token } = await loginRequest(email, password)
+      await issueDeviceSession(device_session_token)
+      const currentUser = await getMe()
+      setUser(currentUser)
+    } finally {
+      loginInFlightRef.current = false
+      setIsLoading(false)
+    }
+  }, [])
 
   const logout = useCallback(() => {
     setUser(null)
