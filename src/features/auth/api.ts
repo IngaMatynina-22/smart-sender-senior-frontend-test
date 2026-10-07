@@ -4,6 +4,7 @@ import type { User } from './model/types.ts'
 
 const LOGIN_PATH = '/auth/login'
 const ISSUE_SESSION_PATH = '/auth/token/issue'
+const ROTATE_SESSION_PATH = '/auth/token/rotate'
 const ME_PATH = '/v1/me'
 const CAPTCHA_HEADER = 'X-Captcha-Token'
 
@@ -46,4 +47,15 @@ export async function issueDeviceSession(deviceSessionToken: string): Promise<vo
 export async function getMe(): Promise<User> {
   const response = await apiClient.get(ME_PATH)
   return (await response.json()) as User
+}
+
+export async function rotateSession(): Promise<void> {
+  await apiClient.post(ROTATE_SESSION_PATH, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      fingerprint: getFingerprint(),
+    }),
+  })
 }

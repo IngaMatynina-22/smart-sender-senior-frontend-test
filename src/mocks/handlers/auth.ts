@@ -25,6 +25,10 @@ type IssueSessionBody = {
   fingerprint?: string
 }
 
+type RotateSessionBody = {
+  fingerprint?: string
+}
+
 function captchaRequired() {
   return HttpResponse.json(
     {
@@ -139,5 +143,19 @@ export const authHandlers = [
       last_name: MOCK_USER.last_name,
       name: MOCK_USER.name,
     })
+  }),
+
+  http.post('/auth/token/rotate', async ({ request }) => {
+    try {
+      void ((await request.json()) as RotateSessionBody)
+    } catch {}
+
+    if (!isSessionActive()) {
+      return new HttpResponse(null, { status: 400 })
+    }
+
+    startSession()
+
+    return new HttpResponse(null, { status: 200 })
   }),
 ]
