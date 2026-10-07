@@ -1,9 +1,13 @@
 import { http, HttpResponse } from 'msw'
-import { startSession } from '../session.ts'
+import { isSessionActive, startSession } from '../session.ts'
 
 const MOCK_USER = {
+  id: 1,
   email: 'test@example.com',
   password: 'password123',
+  first_name: 'Test',
+  last_name: 'User',
+  name: 'Test User',
 }
 
 const MOCK_DEVICE_SESSION_TOKEN = 'mock-device-session-token'
@@ -121,5 +125,19 @@ export const authHandlers = [
     startSession()
 
     return new HttpResponse(null, { status: 200 })
+  }),
+
+  http.get('/v1/me', () => {
+    if (!isSessionActive()) {
+      return new HttpResponse(null, { status: 401 })
+    }
+
+    return HttpResponse.json({
+      id: MOCK_USER.id,
+      email: MOCK_USER.email,
+      first_name: MOCK_USER.first_name,
+      last_name: MOCK_USER.last_name,
+      name: MOCK_USER.name,
+    })
   }),
 ]
