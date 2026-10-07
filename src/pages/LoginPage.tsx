@@ -1,3 +1,5 @@
+import { LoginForm } from '../features/auth/ui/LoginForm.tsx'
+
 export function LoginPage() {
-  return <h1>Login</h1>
+  return <LoginForm />
 }
