@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent } from 'react'
+import { type ChangeEvent } from 'react'
 import {
   Alert,
   Box,
@@ -7,6 +7,7 @@ import {
   Paper,
   Typography,
 } from '@mui/material'
+import { useSearchParams } from 'react-router'
 import { useWebhooks } from '../features/webhooks/model/useWebhooks.ts'
 import { WebhooksPagination } from '../features/webhooks/ui/WebhooksPagination.tsx'
 import { WebhooksSearch } from '../features/webhooks/ui/WebhooksSearch.tsx'
@@ -14,18 +15,48 @@ import { WebhooksTable } from '../features/webhooks/ui/WebhooksTable.tsx'
 
 const LIMIT = 10
 
+function parsePage(value: string | null): number {
+  if (value === null || value.trim() === '') {
+    return 1
+  }
+
+  const parsed = Number.parseInt(value, 10)
+
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return 1
+  }
+
+  return parsed
+}
+
+function buildWebhooksSearchParams(page: number, search: string): URLSearchParams {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+
+  if (search !== '') {
+    params.set('search', search)
+  }
+
+  return params
+}
+
 export function WebhooksPage() {
-  const [page, setPage] = useState(1)
-  const [search, setSearch] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const page = parsePage(searchParams.get('page'))
+  const search = searchParams.get('search') ?? ''
+
   const { data, isLoading, error } = useWebhooks({
     page,
     limit: LIMIT,
     search,
   })
 
+  const handlePageChange = (nextPage: number) => {
+    setSearchParams(buildWebhooksSearchParams(nextPage, search))
+  }
+
   const handleSearchChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setSearch(event.target.value)
-    setPage(1)
+    setSearchParams(buildWebhooksSearchParams(1, event.target.value))
   }
 
   return (
@@ -64,7 +95,7 @@ export function WebhooksPage() {
                 <WebhooksPagination
                   page={page}
                   pages={data.paging.pages.last}
-                  onChange={setPage}
+                  onChange={handlePageChange}
                 />
               </Box>
             ) : null}
